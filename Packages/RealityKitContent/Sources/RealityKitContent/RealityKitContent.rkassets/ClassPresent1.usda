@@ -1,0 +1,179 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "Reality Composer Pro Version 2.0 (448.60.4)"
+    }
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    reorder nameChildren = ["Pegawai_UNICEF_2___Stand_To_Sit__1_", "Classroom1", "Model1", "Model2", "Model3", "Model4_QA", "Model5_QA", "Model6_QA", "Model7_QA", "Model8_QA"]
+    def "Pegawai_UNICEF_2___Stand_To_Sit__1_" (
+        active = true
+        references = @Pegawai_UNICEF_2_-_Stand_To_Sit (1).usdz@
+    )
+    {
+        quatf xformOp:orient = (1, 0, 0, 0)
+        float3 xformOp:scale = (0.024995275, 0.024995275, 0.024995275)
+        float3 xformOp:translate = (-0.24586368, 1.4116361, -5.75735)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Classroom1" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (0, -3.1415918, 0)
+        }
+        references = @vr_new_study_room.usdz@
+    )
+    {
+        quatf xformOp:orient = (4.371139e-8, 0, 1, 0)
+        float3 xformOp:scale = (0.01, 0.01, 0.01)
+        float3 xformOp:translate = (-0.2, -0.4, -10)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model1" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707966, -0.43633232, -4.9324843e-8)
+        }
+        references = @Model1.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.6903454, -0.6903456, -0.15304588, -0.15304595)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (2.8652606, -0.2591237, -7.506417)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model2" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707965, -0.52359873, -1.720638e-8)
+        }
+        references = @Model2.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.6830126, -0.6830128, -0.18301266, -0.18301272)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (3.8083339, -0.22568172, -7.482239)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model3" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707966, -0.34906587, 4.7572453e-8)
+        }
+        references = @Model3.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.69636416, -0.69636434, -0.1227878, -0.1227878)
+        float3 xformOp:scale = (0.01, 0.01, 0.01)
+        float3 xformOp:translate = (-4.7288885, -0.11778062, -9.764057)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model4_QA" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707966, -0.5235988, 6.882552e-8)
+        }
+        references = @Model4.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.6830126, -0.6830128, -0.18301271, -0.18301271)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (5.0469294, -0.3115018, -7.848825)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model5_QA" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707966, 0.34906587, -1.5857484e-8)
+        }
+        references = @Model5.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.69636416, -0.69636434, 0.12278779, 0.12278781)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (-2.9978454, -0.19011433, -10.063006)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model6_QA" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707966, 0.34906587, -1.5857484e-8)
+        }
+        references = @Model6.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.69636416, -0.69636434, 0.12278779, 0.12278781)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (2.6772964, -0.30638143, -12.488058)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model7_QA" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707966, 0.34906587, -1.5857484e-8)
+        }
+        references = @Model7.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.69636416, -0.69636434, 0.12278779, 0.12278781)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (-3.0854352, -0.4317166, -14.166385)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model8_QA" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707965, 0.5235988, 0)
+        }
+        references = @Model8.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.68301266, -0.6830127, 0.1830127, 0.18301271)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (-3.8279133, -0.097683966, -9.403515)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model9" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707964, 0, 0)
+        }
+        prepend references = @Model9.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (-5.6643095, -0.09128256, -9.535001)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+
+    def "Model10" (
+        active = true
+        customData = {
+            float3 rotationEulerHint = (-1.5707961, -1.0471977, -1.1920929e-7)
+        }
+        prepend references = @Model10.usdc@
+    )
+    {
+        quatf xformOp:orient = (0.61237246, -0.6123724, -0.35355338, -0.35355338)
+        float3 xformOp:scale = (1, 1, 1)
+        float3 xformOp:translate = (3.8246303, -0.116230026, -11.740139)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+}
+
