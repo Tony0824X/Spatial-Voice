@@ -8,14 +8,6 @@
     "objectMetadataList" : [
       [
         "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
         "Root",
         "Sphere"
       ],
@@ -27,6 +19,14 @@
         "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
         "Root",
         "GridMaterial"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      },
+      [
+        "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
+        "Root"
       ],
       {
         "isExpanded" : true,
@@ -60,8 +60,7 @@
     "objectMetadataList" : [
       [
         "350EAD85-4EB2-43DF-A40B-4B3DA72020DE",
-        "Root",
-        "Classroom3"
+        "Root"
       ],
       {
         "isExpanded" : true,
@@ -69,7 +68,8 @@
       },
       [
         "350EAD85-4EB2-43DF-A40B-4B3DA72020DE",
-        "Root"
+        "Root",
+        "Classroom3"
       ],
       {
         "isExpanded" : true,
@@ -101,11 +101,24 @@
       }
     ]
   },
+  "93807072-18F8-458C-9184-96A6FFD6C6A2" : {
+    "objectMetadataList" : [
+      [
+        "93807072-18F8-458C-9184-96A6FFD6C6A2",
+        "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      }
+    ]
+  },
   "D8B7F499-1EF4-439A-AA5D-87901D09329F" : {
     "objectMetadataList" : [
       [
         "D8B7F499-1EF4-439A-AA5D-87901D09329F",
-        "Root"
+        "Root",
+        "Classroom2"
       ],
       {
         "isExpanded" : true,
@@ -113,8 +126,19 @@
       },
       [
         "D8B7F499-1EF4-439A-AA5D-87901D09329F",
-        "Root",
-        "Classroom2"
+        "Root"
+      ],
+      {
+        "isExpanded" : true,
+        "isLocked" : false
+      }
+    ]
+  },
+  "DD1D17F9-F5ED-4028-AD89-9F9C62DFF0B5" : {
+    "objectMetadataList" : [
+      [
+        "DD1D17F9-F5ED-4028-AD89-9F9C62DFF0B5",
+        "Root"
       ],
       {
         "isExpanded" : true,

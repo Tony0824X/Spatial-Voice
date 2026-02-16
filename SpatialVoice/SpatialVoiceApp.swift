@@ -31,5 +31,10 @@ struct SpatialVoiceApp: App {
                 .environmentObject(session)
         }
         
+        ImmersiveSpace(id: "Gameroom1") {
+            GameImmersiveView()
+                .environmentObject(session)
+        }
+
     }
 }

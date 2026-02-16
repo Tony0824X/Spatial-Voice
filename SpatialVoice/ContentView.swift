@@ -369,6 +369,8 @@ private struct GamesPageView: View {
     private let heroImages = (1...3).map { "Game_pic1_\($0)" }
     private let listImages = (1...6).map { "Game_pic2_\($0)" }
 
+    @State private var showGameMenu = false      // ⬅️ 新增
+
     private func experience(for index: Int) -> SVExperience {
         switch index % 3 {
         case 0: return .vrar
@@ -387,7 +389,15 @@ private struct GamesPageView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(Array(heroImages.enumerated()), id: \.offset) { i, name in
-                        HeroTile(imageName: name, experience: experience(for: i))
+                        if i == 0 {
+                            // 第一張 Game_pic1_1 → 進入 GameMenuView
+                            HeroTile(imageName: name, experience: experience(for: i))
+                                .onTapGesture {
+                                    showGameMenu = true
+                                }
+                        } else {
+                            HeroTile(imageName: name, experience: experience(for: i))
+                        }
                     }
                 }
                 .padding(.horizontal, 12)
@@ -418,6 +428,10 @@ private struct GamesPageView: View {
         .frame(maxWidth: 980)
         .frame(maxWidth: .infinity, alignment: .center)
         .background(.clear)
+        // ⬅️ 新增：跳去 GameMenuView
+        .fullScreenCover(isPresented: $showGameMenu) {
+            GameMenuView()
+        }
     }
 }
 
@@ -515,6 +529,7 @@ private struct GameTile: View {
         .hoverEffect(.lift)
     }
 }
+
 
 // MARK: - Certificates Page
 
@@ -1265,9 +1280,3 @@ private struct LabeledMenu: View {
     }
 }
 
-// MARK: - Preview
-
-#Preview {
-    ContentView()
-        .environmentObject(PresentationSession())
-}

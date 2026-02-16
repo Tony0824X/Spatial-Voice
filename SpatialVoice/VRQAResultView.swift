@@ -3,6 +3,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 import PDFKit
 import RealityKit
+import Speech
+import AVFoundation
 
 // MARK: - Q&A 狀態
 
@@ -200,6 +202,12 @@ struct PresentationHUDView: View {
     @State private var scriptPageIndex: Int = 0
     @State private var scriptPageCount: Int = 1
 
+    // MARK: - Speech Recognition
+    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    @State private var audioEngine = AVAudioEngine()
+    @State private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @State private var recognitionTask: SFSpeechRecognitionTask?
+
     var body: some View {
         VStack(spacing: 18) {
             timerControlBar
@@ -217,6 +225,10 @@ struct PresentationHUDView: View {
         .onAppear {
             remainingSeconds = max(1, session.durationMinutes) * 60
             updatePageCounts()
+            SFSpeechRecognizer.requestAuthorization { _ in }
+        }
+        .onDisappear {
+            stopLiveSpeechRecognition()
         }
         .onChange(of: session.slidesURL) { _ in
             updatePageCounts()
@@ -241,11 +253,13 @@ struct PresentationHUDView: View {
             Button {
                 if isTimerRunning {
                     isTimerRunning = false
+                    stopLiveSpeechRecognition()
                 } else {
                     if remainingSeconds <= 0 {
                         remainingSeconds = max(1, session.durationMinutes) * 60
                     }
                     isTimerRunning = true
+                    startLiveSpeechRecognition()
                 }
             } label: {
                 Text(isTimerRunning ? "Stop" : "Start")
@@ -285,6 +299,7 @@ struct PresentationHUDView: View {
 
             Button {
                 isTimerRunning = false
+                stopLiveSpeechRecognition()
                 let totalSeconds = max(1, session.durationMinutes) * 60
                 let used = max(0, totalSeconds - remainingSeconds)
                 session.actualUsedSeconds = used
@@ -313,38 +328,79 @@ struct PresentationHUDView: View {
         HUDNeonScreen(
             colors: [Color.green, Color.teal, Color.green]
         ) {
-            VStack(spacing: 16) {
-                if let url = session.slidesURL {
-                    Text("Slides")
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    // MARK: Top 70% — Slides
+                    VStack(spacing: 10) {
+                        if let url = session.slidesURL {
+                            Text("Slides")
+                                .font(.title2.bold())
+                                .foregroundStyle(.white)
 
-                    Text(url.lastPathComponent)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
+                            Text(url.lastPathComponent)
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.8))
 
-                    if url.pathExtension.lowercased() == "pdf" {
-                        HUDPDFKitContainerView(
-                            url: url,
-                            pageIndex: slidesPageIndex,
-                            continuous: false
-                        )
-                    } else {
-                        Text("Preview not available for this file type.\n(Only PDF is rendered.)")
-                            .font(.footnote)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.white.opacity(0.8))
-                            .padding(.top, 40)
+                            if url.pathExtension.lowercased() == "pdf" {
+                                HUDPDFKitContainerView(
+                                    url: url,
+                                    pageIndex: slidesPageIndex,
+                                    continuous: false
+                                )
+                            } else {
+                                Text("Preview not available for this file type.\n(Only PDF is rendered.)")
+                                    .font(.footnote)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundStyle(.white.opacity(0.8))
+                                    .padding(.top, 20)
+                            }
+                        } else {
+                            Spacer()
+                            Text("No slides selected")
+                                .font(.title3)
+                                .foregroundStyle(.white.opacity(0.7))
+                            Spacer()
+                        }
                     }
-                } else {
-                    Spacer()
-                    Text("No slides selected")
-                        .font(.title3)
-                        .foregroundStyle(.white.opacity(0.7))
-                    Spacer()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .frame(height: geo.size.height * 0.70)
+
+                    // Divider between slides and live speech
+                    Rectangle()
+                        .fill(Color.white.opacity(0.25))
+                        .frame(height: 1)
+                        .padding(.horizontal, 16)
+
+                    // MARK: Bottom 30% — Live Speech Text
+                    VStack(spacing: 6) {
+                        HStack {
+                            Image(systemName: "waveform")
+                                .foregroundStyle(.green)
+                            Text("Live Speech")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(.white)
+                            Spacer()
+                        }
+
+                        ScrollView {
+                            Text(session.liveSpokenText.isEmpty
+                                 ? "Waiting for speech..."
+                                 : session.liveSpokenText)
+                                .font(.body)
+                                .foregroundStyle(
+                                    session.liveSpokenText.isEmpty
+                                    ? .white.opacity(0.4)
+                                    : .white.opacity(0.95)
+                                )
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .frame(height: geo.size.height * 0.30)
                 }
             }
-            .padding(20)
         }
         .overlay(alignment: .bottom) {
             HStack(spacing: 18) {
@@ -505,6 +561,103 @@ struct PresentationHUDView: View {
             scriptPageCount = max(doc.pageCount, 1)
             scriptPageIndex = min(scriptPageIndex, scriptPageCount - 1)
         }
+    }
+
+    // MARK: - Live Speech Recognition
+
+    private func startLiveSpeechRecognition() {
+        // Stop any existing recognition first
+        stopLiveSpeechRecognition()
+
+        // Check authorization status
+        let authStatus = SFSpeechRecognizer.authorizationStatus()
+        print("🎙️ Speech auth status: \(authStatus.rawValue)")
+        guard authStatus == .authorized else {
+            print("⚠️ Speech recognition not authorized (status: \(authStatus.rawValue))")
+            session.liveSpokenText = "(Speech recognition not authorized)"
+            return
+        }
+
+        guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
+            print("⚠️ SFSpeechRecognizer not available")
+            session.liveSpokenText = "(Speech recognizer unavailable)"
+            return
+        }
+
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try audioSession.setActive(true)
+        } catch {
+            print("❌ AudioSession setup failed:", error)
+            return
+        }
+
+        // Prepare engine FIRST so the audio hardware initialises
+        audioEngine.prepare()
+
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let req = recognitionRequest else { return }
+        req.shouldReportPartialResults = true
+
+        let inputNode = audioEngine.inputNode
+
+        // Try outputFormat first; if invalid, try inputFormat; last resort: manual 48 kHz mono
+        var fmt = inputNode.outputFormat(forBus: 0)
+        print("🎙️ outputFormat: sampleRate=\(fmt.sampleRate), ch=\(fmt.channelCount)")
+
+        if fmt.sampleRate == 0 || fmt.channelCount == 0 {
+            fmt = inputNode.inputFormat(forBus: 0)
+            print("🎙️ inputFormat fallback: sampleRate=\(fmt.sampleRate), ch=\(fmt.channelCount)")
+        }
+
+        if fmt.sampleRate == 0 || fmt.channelCount == 0 {
+            if let manual = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1) {
+                fmt = manual
+                print("🎙️ Manual 48kHz fallback")
+            } else {
+                print("❌ Cannot create any valid audio format")
+                session.liveSpokenText = "(No microphone available)"
+                return
+            }
+        }
+
+        inputNode.removeTap(onBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: fmt) { buffer, _ in
+            req.append(buffer)
+        }
+
+        recognitionTask = speechRecognizer.recognitionTask(with: req) { result, error in
+            if let r = result {
+                DispatchQueue.main.async {
+                    session.liveSpokenText = r.bestTranscription.formattedString
+                }
+            }
+            if let error = error {
+                print("⚠️ Recognition error: \(error.localizedDescription)")
+                if isTimerRunning {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        startLiveSpeechRecognition()
+                    }
+                }
+            }
+        }
+
+        do {
+            try audioEngine.start()
+            print("✅ AudioEngine started successfully")
+        } catch {
+            print("❌ AudioEngine start failed:", error)
+        }
+    }
+
+    private func stopLiveSpeechRecognition() {
+        audioEngine.stop()
+        recognitionRequest?.endAudio()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        recognitionTask?.finish()
+        recognitionRequest = nil
+        recognitionTask = nil
     }
 }
 

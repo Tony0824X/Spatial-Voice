@@ -92,6 +92,11 @@ final class PresentationSession: ObservableObject {
         return String(format: "%02d:%02d", m, s)
     }
 
+    // MARK: - Live Speech (real-time recognised text)
+
+    /// The user's real-time spoken English text displayed during presentation
+    @Published var liveSpokenText: String = ""
+
     // MARK: - DeepSeek 分析狀態
 
     @Published var isAnalyzing: Bool = false
@@ -246,19 +251,19 @@ final class PresentationSession: ObservableObject {
 
         let g1 = GameRecord(
             id: UUID(),
-            date: formatter.date(from: "2025-05-10 14:20") ?? Date(),
-            title: "Timing Rush",
-            imageName: "Game_pic2_1",
-            modeLabel: "Story Mode",
-            bestScore: 9800
+            date: formatter.date(from: "2026-01-09 10:35") ?? Date(),
+            title: "Mock Interview",
+            imageName: "Game_pic2_6",
+            modeLabel: "Mock Interview",
+            bestScore: 1850
         )
         let g2 = GameRecord(
             id: UUID(),
-            date: formatter.date(from: "2025-05-02 18:10") ?? Date(),
+            date: formatter.date(from: "2025-12-08 18:10") ?? Date(),
             title: "Confidence Combo",
-            imageName: "Game_pic2_2",
-            modeLabel: "Story Mode",
-            bestScore: 8200
+            imageName: "Game_pic2_5",
+            modeLabel: "Mock Presentation",
+            bestScore: 1800
         )
 
         gameRecords = [g1, g2]

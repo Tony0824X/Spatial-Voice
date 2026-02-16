@@ -393,7 +393,7 @@ private struct SidePanel: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            PanelBox(title: "Script") {
+            PanelBox(title: "Script (Optional)") {
                 if session.scriptURL == nil {
                     Button(action: onUploadScript) {
                         HStack(spacing: 10) {
@@ -422,7 +422,7 @@ private struct SidePanel: View {
             }
             .frame(maxWidth: .infinity)
 
-            PanelBox(title: "PowerPoint") {
+            PanelBox(title: "PowerPoint (Optional)") {
                 if session.slidesURL == nil {
                     Button(action: onUploadSlides) {
                         HStack(spacing: 10) {
