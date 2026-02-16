@@ -2,6 +2,7 @@
 import SwiftUI
 import RealityKit
 import RealityKitContent
+import AVFoundation
 
 struct ClassPresentationImmersiveView: View {
     /// 對應 ImmersiveSpace 的場景名，例如 "ClassPresent1"
@@ -11,6 +12,16 @@ struct ClassPresentationImmersiveView: View {
 
     // 用來存住 root entity，之後可以再搵返 Model4_QA ~ Model8_QA
     @State private var rootEntity: Entity?
+
+    // Audio player for Q&A question audio
+    @State private var audioPlayer: AVAudioPlayer?
+
+    /// Mapping: model entity name → MP3 file name (without extension)
+    private let qaAudioMap: [String: String] = [
+        "Model4_QA": "ClassPresentationQ&A1",
+        "Model6_QA": "ClassPresentationQ&A2",
+        "Model5_QA": "ClassPresentationQ&A3"
+    ]
 
     var body: some View {
         RealityView { content in
@@ -55,22 +66,16 @@ struct ClassPresentationImmersiveView: View {
                 }
 
                 // 3. Q&A 角色（Model4_QA ~ Model8_QA）：
-                //    只係確認有冇搵到，但唔即刻播動畫，
-                //    真正開始播係等到 session.showResult == true（即按咗 End → 進入 Q&A Session）
-                if entity.findEntity(named: "Model4_QA") == nil {
-                    print("⚠️ Cannot find entity named 'Model4_QA' in scene \(sceneName)")
-                }
-                if entity.findEntity(named: "Model5_QA") == nil {
-                    print("⚠️ Cannot find entity named 'Model5_QA' in scene \(sceneName)")
-                }
-                if entity.findEntity(named: "Model6_QA") == nil {
-                    print("⚠️ Cannot find entity named 'Model6_QA' in scene \(sceneName)")
-                }
-                if entity.findEntity(named: "Model7_QA") == nil {
-                    print("⚠️ Cannot find entity named 'Model7_QA' in scene \(sceneName)")
-                }
-                if entity.findEntity(named: "Model8_QA") == nil {
-                    print("⚠️ Cannot find entity named 'Model8_QA' in scene \(sceneName)")
+                //    確認有冇搵到，並為需要播音頻嘅 model 加上 tap 支援
+                for name in ["Model4_QA", "Model5_QA", "Model6_QA", "Model7_QA", "Model8_QA"] {
+                    if let model = entity.findEntity(named: name) {
+                        // Add tap support for models that have audio mapped
+                        if qaAudioMap[name] != nil {
+                            enableTap(on: model)
+                        }
+                    } else {
+                        print("⚠️ Cannot find entity named '\(name)' in scene \(sceneName)")
+                    }
                 }
 
                 // 如果此刻已經係 Q&A 模式（例如 re-enter immersive space），
@@ -84,12 +89,73 @@ struct ClassPresentationImmersiveView: View {
             }
         }
         .ignoresSafeArea()   // 令 3D 場景鋪滿視野
+        // Tap gesture: detect which Q&A model was tapped and play the corresponding audio
+        .gesture(
+            SpatialTapGesture()
+                .targetedToAnyEntity()
+                .onEnded { value in
+                    handleTap(on: value.entity)
+                }
+        )
         // 當 user 喺 HUD 撳 End → session.showResult 由 false → true，
         // 呢度就會收到變化，然後幫 Q&A models 播 loop animation。
         .onChange(of: session.showResult) { newValue in
             if newValue {
                 startQALoopsIfNeeded()
             }
+        }
+    }
+
+    // MARK: - Tap-to-Play Audio
+
+    /// Add InputTargetComponent and CollisionComponent so the entity can receive tap gestures
+    private func enableTap(on entity: Entity) {
+        entity.components.set(InputTargetComponent())
+
+        // Generate collision shapes from the model's visual mesh
+        entity.generateCollisionShapes(recursive: true)
+
+        print("✅ Tap enabled on '\(entity.name)'")
+    }
+
+    /// Walk up the entity hierarchy to find which Q&A model was tapped, then play its audio
+    private func handleTap(on tappedEntity: Entity) {
+        var current: Entity? = tappedEntity
+
+        // Walk up the hierarchy to find a named Q&A model
+        while let entity = current {
+            if let audioFile = qaAudioMap[entity.name] {
+                print("🎵 Tapped '\(entity.name)' → playing \(audioFile).mp3")
+                playAudio(named: audioFile)
+                return
+            }
+            current = entity.parent
+        }
+
+        print("ℹ️ Tapped entity '\(tappedEntity.name)' is not a Q&A model with audio")
+    }
+
+    /// Play an MP3 file from the app bundle
+    private func playAudio(named fileName: String) {
+        // Stop any currently playing audio
+        audioPlayer?.stop()
+
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: "mp3") else {
+            print("❌ Cannot find audio file: \(fileName).mp3")
+            return
+        }
+
+        do {
+            // Configure audio session for playback
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default)
+            try audioSession.setActive(true)
+
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+            print("▶️ Playing \(fileName).mp3")
+        } catch {
+            print("❌ Audio playback failed: \(error)")
         }
     }
 

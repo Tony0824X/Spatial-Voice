@@ -19,6 +19,7 @@ struct QAItem: Identifiable {
     let number: Int
     let text: String
     var status: QAStatus = .idle
+    var isRevealed: Bool = false   // question text starts blurred
 }
 
 // MARK: - QASessionView
@@ -117,9 +118,11 @@ private struct QAQuestionRow: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.black.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
+                    .blur(radius: item.isRevealed ? 0 : 6)
 
                 HStack {
                     Spacer()
+                    showHideButton
                     statusButtons
                 }
                 .padding(.top, 8)
@@ -129,6 +132,26 @@ private struct QAQuestionRow: View {
         .padding(.vertical, 16)
         .background(cardBackground, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
+    }
+
+    /// Show / Hide toggle button for question text
+    private var showHideButton: some View {
+        Button {
+            item.isRevealed.toggle()
+        } label: {
+            Text(item.isRevealed ? "Hide" : "Show")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .background(
+                    item.isRevealed
+                        ? Color(red: 255/255, green: 180/255, blue: 100/255)
+                        : Color(red: 120/255, green: 200/255, blue: 255/255),
+                    in: Capsule()
+                )
+                .foregroundStyle(Color.black.opacity(0.85))
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
