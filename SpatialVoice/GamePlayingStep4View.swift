@@ -12,6 +12,7 @@ struct GamePlayingStep4View: View {
     // UI state
     @State private var grades: [String] = Array(repeating: "?", count: 4)
     @State private var feedbacks: [String] = Array(repeating: "No feedback.", count: 4)
+    @State private var improvementTips: [String] = Array(repeating: "", count: 4)
     
     @Environment(\.dismiss) private var dismiss
     
@@ -43,15 +44,21 @@ struct GamePlayingStep4View: View {
                 
                 Spacer().frame(height: 10)
                 
-                ForEach(0..<4, id: \.self) { idx in
-                    ResultRowView(
-                        questionText: questionTitle(idx: idx),
-                        grade: grades[idx],
-                        feedback: feedbacks[idx],
-                        isDark: idx % 2 == 1
-                    )
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(0..<4, id: \.self) { idx in
+                            ResultRowView(
+                                questionText: questionTitle(idx: idx),
+                                grade: grades[idx],
+                                feedback: feedbacks[idx],
+                                improvementTip: improvementTips[idx],
+                                isDark: idx % 2 == 1
+                            )
+                        }
+                    }
                     .padding(.horizontal, 24)
-                }.padding(.top, 23)
+                    .padding(.top, 23)
+                }
                 
                 Spacer()
             }
@@ -117,7 +124,7 @@ struct GamePlayingStep4View: View {
             "messages": [
                 [
                     "role": "system",
-                    "content": "You are an interviewer assistant. Analyze the answer, give a grade (A/B/C/D) and at least 30 words feedback. Max 35 words."
+                    "content": "You are an interviewer assistant. Analyze the answer. Reply in exactly 3 lines:\nLine 1: Grade: (A/B/C/D)\nLine 2: Feedback: (30-35 words feedback)\nLine 3: Tip: (a short ~20 word tip on how to improve to the next higher grade. If grade is A, say 'Great job! Keep it up.')"
                 ],
                 [
                     "role": "user",
@@ -157,17 +164,30 @@ struct GamePlayingStep4View: View {
                    let message = choices.first?["message"] as? [String: Any],
                    let content = message["content"] as? String {
                     
-                    let lines = content.components(separatedBy: "\n")
+                    let lines = content.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
                     
                     let rawGrade = lines.first ?? ""
                     let extractedGrade = rawGrade
                         .replacingOccurrences(of: "Grade:", with: "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     
-                    let fb = lines
-                        .dropFirst()
-                        .joined(separator: " ")
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    // Extract feedback and tip from structured response
+                    var fb = ""
+                    var tip = ""
+                    for line in lines.dropFirst() {
+                        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if trimmed.lowercased().hasPrefix("tip:") {
+                            tip = trimmed
+                                .replacingOccurrences(of: "Tip:", with: "", options: .caseInsensitive)
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                        } else if trimmed.lowercased().hasPrefix("feedback:") {
+                            fb = trimmed
+                                .replacingOccurrences(of: "Feedback:", with: "", options: .caseInsensitive)
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                        } else if fb.isEmpty {
+                            fb = trimmed
+                        }
+                    }
                     
                     DispatchQueue.main.async {
                         grades[idx] = extractedGrade.isEmpty ? "?" : extractedGrade
@@ -180,6 +200,13 @@ struct GamePlayingStep4View: View {
                             feedbacks[idx] = "No feedback."
                         } else {
                             feedbacks[idx] = fb
+                        }
+                        
+                        // Set improvement tip
+                        if tip.isEmpty {
+                            improvementTips[idx] = improvementTipFallback(for: extractedGrade)
+                        } else {
+                            improvementTips[idx] = tip
                         }
                     }
                     
@@ -198,12 +225,29 @@ struct GamePlayingStep4View: View {
             }
         }.resume()
     }
+    
+    /// Fallback improvement tip when DeepSeek does not return one
+    private func improvementTipFallback(for grade: String) -> String {
+        switch grade.uppercased() {
+        case "A":
+            return "Great job! Keep up the excellent work."
+        case "B":
+            return "Add more specific examples to reach A."
+        case "C":
+            return "Expand details and show genuine interest to reach B."
+        case "D":
+            return "Be more professional and provide concrete answers to reach C."
+        default:
+            return ""
+        }
+    }
 }
 
 fileprivate struct ResultRowView: View {
     let questionText: String
     let grade: String
     let feedback: String
+    let improvementTip: String
     let isDark: Bool
     
     var body: some View {
@@ -222,6 +266,13 @@ fileprivate struct ResultRowView: View {
                     .font(.headline)
                     .foregroundColor(.red)
                     .lineLimit(2)
+                
+                if !improvementTip.isEmpty {
+                    Text("💡 \(improvementTip)")
+                        .font(.subheadline)
+                        .foregroundColor(.orange)
+                        .lineLimit(2)
+                }
             }
             Spacer()
         }

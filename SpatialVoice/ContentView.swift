@@ -538,6 +538,8 @@ private struct CertificatesPageView: View {
     private let sec2 = (1...3).map { "Certificates_pic2_\($0)" }
     private let sec3 = (1...3).map { "Certificates_pic3_\($0)" }
 
+    @State private var showStoryTellingLevel1 = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
@@ -546,7 +548,11 @@ private struct CertificatesPageView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
 
-                certificateRow(sectionTitle: "Story Telling", images: sec1)
+                certificateRow(sectionTitle: "Story Telling", images: sec1) { imageName in
+                    if imageName == "Certificates_pic1_1" {
+                        showStoryTellingLevel1 = true
+                    }
+                }
                 certificateRow(sectionTitle: "Connect with Audience", images: sec2)
                 certificateRow(sectionTitle: "Body Language", images: sec3)
             }
@@ -555,9 +561,12 @@ private struct CertificatesPageView: View {
             .frame(maxWidth: .infinity, alignment: .center)
             .background(.clear)
         }
+        .fullScreenCover(isPresented: $showStoryTellingLevel1) {
+            StoryTellingLevel1View(isPresented: $showStoryTellingLevel1)
+        }
     }
 
-    private func certificateRow(sectionTitle: String, images: [String]) -> some View {
+    private func certificateRow(sectionTitle: String, images: [String], onTapTile: ((String) -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(sectionTitle)
                 .font(.title3.bold())
@@ -568,6 +577,9 @@ private struct CertificatesPageView: View {
                     ForEach(Array(images.enumerated()), id: \.offset) { idx, name in
                         let level = CertLevel(rawValue: idx) ?? .beginner
                         CertificateTile(imageName: name, level: level)
+                            .onTapGesture {
+                                onTapTile?(name)
+                            }
                     }
                 }
                 .padding(.horizontal, 12)
