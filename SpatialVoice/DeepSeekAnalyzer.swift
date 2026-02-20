@@ -33,48 +33,85 @@ final class DeepSeekAnalyzer {
         }
 
         do {
-            let jsonString = try await callDeepSeek(prompt: prompt)
-            guard let analysis = try? decodeAnalysis(from: jsonString) else {
-                print("⚠️ Failed to decode DeepSeek JSON.")
-                return
-            }
+            async let mainResult = try? callDeepSeek(prompt: prompt)
+            
+            let duration = Double(session.actualUsedSeconds)
+            let wordCount = session.liveSpokenText.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+            let wpm = duration > 0 ? (Double(wordCount) / duration * 60.0) : 0
+            
+            async let vocalResult = try? DeepSeekClient.analyzeVocal(
+                transcript: session.liveSpokenText,
+                duration: duration,
+                wpm: wpm,
+                avgDB: session.avgDB,
+                maxDB: session.maxDB,
+                samples: session.voiceSamples
+            )
+            
+            async let bodyResult = try? DeepSeekClient.analyzeBodyLanguage(
+                duration: duration,
+                avgLeftFreq: session.avgLeftFreq,
+                avgRightFreq: session.avgRightFreq,
+                maxLeftFreq: session.maxLeftFreq,
+                maxRightFreq: session.maxRightFreq,
+                samples: session.handSamples
+            )
+
+            let mainRes = await mainResult
+            let vRes = await vocalResult
+            let bRes = await bodyResult
+            
+            let analysis = (mainRes != nil) ? (try? decodeAnalysis(from: mainRes!)) : nil
 
             await MainActor.run {
-                // 1. 把 6 個自動評分項目 + Overall 套入 UI
-                session.scoreVerbalContent       = analysis.scores.verbalContent
-                session.scoreVisualAids          = analysis.scores.visualAidsSlides
-                session.scoreTimeManagement      = analysis.scores.timeManagement
-                session.scoreAudienceEngagement  = analysis.scores.audienceEngagement
+                if let a = analysis {
+                    // 1. 把 4 個自動評分項目套入 UI
+                    session.scoreVerbalContent       = a.scores.verbalContent
+                    session.scoreVisualAids          = a.scores.visualAidsSlides
+                    session.scoreTimeManagement      = a.scores.timeManagement
+                    session.scoreAudienceEngagement  = a.scores.audienceEngagement
 
-                // 🔹 新增：Vocal / Non-verbal 兩個 numeric 分數
-                session.scoreVocalDelivery       = analysis.scores.vocalDelivery
-                session.scoreNonverbal           = analysis.scores.nonverbalBodyLanguage
+                    session.overallScore             = a.scores.overall
+                    session.overallComment           = a.scores.overallComment
 
-                // 🔹 同時更新 label（Result 畫面會顯示數字而不是 "Updating"）
-                if let v = analysis.scores.vocalDelivery {
-                    session.scoreVocalDeliveryLabel = String(format: "%.1f", v)
+                    // 2. 4 個面向文字建議（DetailFeedbackView 用）
+                    session.feedbackVerbalContent    = a.feedback.verbalContent ?? ""
+                    session.feedbackVisualAids       = a.feedback.visualAidsSlides ?? ""
+                    session.feedbackTimeManagement   = a.feedback.timeManagement ?? ""
+                    session.feedbackAudienceEngagement = a.feedback.audienceEngagement ?? ""
+                    
+                    // Optional fallback
+                    if vRes == nil {
+                        session.scoreVocalDelivery = a.scores.vocalDelivery
+                        if let val = a.scores.vocalDelivery {
+                            session.scoreVocalDeliveryLabel = String(format: "%.1f", val)
+                        }
+                        session.feedbackVocalDelivery = a.feedback.vocalDelivery ?? ""
+                    }
+                    if bRes == nil {
+                        session.scoreNonverbal = a.scores.nonverbalBodyLanguage
+                        if let val = a.scores.nonverbalBodyLanguage {
+                            session.scoreNonverbalLabel = String(format: "%.1f", val)
+                        }
+                        session.feedbackNonverbal = a.feedback.nonverbalBodyLanguage ?? ""
+                    }
                 }
-                if let n = analysis.scores.nonverbalBodyLanguage {
-                    session.scoreNonverbalLabel = String(format: "%.1f", n)
+
+                if let v = vRes {
+                    session.scoreVocalDelivery = Double(v.score)
+                    session.scoreVocalDeliveryLabel = String(format: "%.1f", Double(v.score))
+                    session.feedbackVocalDelivery = v.feedback
                 }
-
-                session.overallScore             = analysis.scores.overall
-                session.overallComment           = analysis.scores.overallComment
-
-                // 2. 6 個面向文字建議（DetailFeedbackView 用）
-                session.feedbackVerbalContent    = analysis.feedback.verbalContent ?? ""
-                session.feedbackVisualAids       = analysis.feedback.visualAidsSlides ?? ""
-                session.feedbackTimeManagement   = analysis.feedback.timeManagement ?? ""
-                session.feedbackAudienceEngagement = analysis.feedback.audienceEngagement ?? ""
-                session.feedbackVocalDelivery    = analysis.feedback.vocalDelivery ?? ""
-                session.feedbackNonverbal        = analysis.feedback.nonverbalBodyLanguage ?? ""
+                
+                if let b = bRes {
+                    session.scoreNonverbal = Double(b.score)
+                    session.scoreNonverbalLabel = String(format: "%.1f", Double(b.score))
+                    session.feedbackNonverbal = b.feedback
+                }
 
                 // 3. 儲存一條「Practice Record」去 History（完整 6 分）
                 session.addPracticeRecordFromCurrentScores()
             }
-        } catch {
-            // 簡單錯誤處理：只在 console 顯示
-            print("❌ DeepSeek analysis failed: \(error)")
         }
     }
 

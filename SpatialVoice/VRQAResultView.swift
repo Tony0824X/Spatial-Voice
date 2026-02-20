@@ -217,7 +217,8 @@ struct PresentationHUDView: View {
 
     @State private var isTimerRunning = false
     @State private var remainingSeconds: Int = 0
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    // Make ticker static so it doesn't get recreated when EnvironmentObject updates at 50Hz
+    private static let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     @State private var slidesPageIndex: Int = 0
     @State private var slidesPageCount: Int = 1
@@ -230,6 +231,12 @@ struct PresentationHUDView: View {
     @State private var audioEngine = AVAudioEngine()
     @State private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     @State private var recognitionTask: SFSpeechRecognitionTask?
+    
+    // MARK: - Trackers
+    @StateObject private var tracker = HandTracker()
+    @State private var audioStartTime: CFAbsoluteTime = 0
+    @State private var dbSum: Double = 0
+    @State private var dbCount: Int = 0
 
     var body: some View {
         VStack(spacing: 18) {
@@ -259,7 +266,7 @@ struct PresentationHUDView: View {
         .onChange(of: session.scriptURL) { _ in
             updatePageCounts()
         }
-        .onReceive(ticker) { _ in
+        .onReceive(Self.ticker) { _ in
             guard isTimerRunning else { return }
             if remainingSeconds > 0 {
                 remainingSeconds -= 1
@@ -498,45 +505,97 @@ struct PresentationHUDView: View {
         HUDNeonScreen(
             colors: [Color.orange, Color.pink, Color.orange]
         ) {
-            VStack(spacing: 18) {
-                if let url = session.scriptURL {
-                    Text("Script")
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    // MARK: Top 50% — Script
+                    VStack(spacing: 12) {
+                        if let url = session.scriptURL {
+                            Text("Script")
+                                .font(.title3.bold())
+                                .foregroundStyle(.white)
 
-                    Text(url.lastPathComponent)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
-
-                    if url.pathExtension.lowercased() == "pdf" {
-                        HUDPDFKitContainerView(
-                            url: url,
-                            pageIndex: scriptPageIndex,
-                            continuous: true
-                        )
-                    } else {
-                        Text("Preview not available for this file type.\n(Only PDF is rendered.)")
-                            .font(.footnote)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.white.opacity(0.8))
-                            .padding(.top, 40)
+                            if url.pathExtension.lowercased() == "pdf" {
+                                HUDPDFKitContainerView(
+                                    url: url,
+                                    pageIndex: scriptPageIndex,
+                                    continuous: true
+                                )
+                            } else {
+                                Text("Preview not available for this file type.")
+                                    .font(.footnote)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundStyle(.white.opacity(0.8))
+                                    .padding(.top, 10)
+                            }
+                        } else {
+                            Spacer()
+                            Text("No script selected")
+                                .font(.title3)
+                                .foregroundStyle(.white.opacity(0.7))
+                            Spacer()
+                        }
                     }
-                } else {
-                    Spacer()
-                    Text("No script selected")
-                        .font(.title3)
-                        .foregroundStyle(.white.opacity(0.7))
-                    Spacer()
+                    .padding(16)
+                    .frame(height: geo.size.height * 0.50)
+
+                    Rectangle().fill(Color.white.opacity(0.25)).frame(height: 1).padding(.horizontal, 16)
+
+                    // MARK: Bottom 50% — Real-time Charts
+                    HStack(spacing: 16) {
+                        // Left: Voice loudness chart
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 4) {
+                                Circle().fill(.cyan).frame(width: 8, height: 8)
+                                Text("Voice (dB)").font(.caption).bold()
+                            }.foregroundStyle(.white)
+                            
+                            if session.voiceSamples.count > 1 {
+                                LiveVoiceChart(
+                                    samples: session.voiceSamples,
+                                    minDB: -80,
+                                    maxDB: 0
+                                )
+                            } else {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.quaternary)
+                                    .overlay(Text("Waiting for voice data...").font(.caption).foregroundStyle(.secondary))
+                            }
+                        }
+                        
+                        // Right: Hand movement chart
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 12) {
+                                HStack(spacing: 4) {
+                                    Circle().fill(.blue).frame(width: 8, height: 8)
+                                    Text("Left Hand").font(.caption).bold()
+                                }
+                                HStack(spacing: 4) {
+                                    Circle().fill(.orange).frame(width: 8, height: 8)
+                                    Text("Right Hand").font(.caption).bold()
+                                }
+                            }.foregroundStyle(.white)
+                            
+                            if tracker.liveSamples.count > 1 {
+                                LiveDualLineChart(
+                                    samples: tracker.liveSamples,
+                                    maxY: computeHandMaxY()
+                                )
+                            } else {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.quaternary)
+                                    .overlay(Text("Waiting for movement data...").font(.caption).foregroundStyle(.secondary))
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .frame(height: geo.size.height * 0.50)
                 }
             }
-            .padding(20)
         }
         .overlay(alignment: .bottom) {
             HStack(spacing: 18) {
                 Button {
-                    if scriptPageIndex > 0 {
-                        scriptPageIndex -= 1
-                    }
+                    if scriptPageIndex > 0 { scriptPageIndex -= 1 }
                 } label: {
                     Text("Previous")
                         .font(.subheadline.weight(.semibold))
@@ -548,9 +607,7 @@ struct PresentationHUDView: View {
                 .disabled(scriptPageCount <= 1)
 
                 Button {
-                    if scriptPageIndex < scriptPageCount - 1 {
-                        scriptPageIndex += 1
-                    }
+                    if scriptPageIndex < scriptPageCount - 1 { scriptPageIndex += 1 }
                 } label: {
                     Text("Next")
                         .font(.subheadline.weight(.semibold))
@@ -562,8 +619,14 @@ struct PresentationHUDView: View {
                 .disabled(scriptPageCount <= 1)
             }
             .padding(.horizontal, 32)
-            .padding(.bottom, 26)
+            .padding(.bottom, 6)
         }
+    }
+
+    private func computeHandMaxY() -> Double {
+        let allVals = tracker.liveSamples.flatMap { [$0.leftFreq, $0.rightFreq] }
+        let maxVal = allVals.max() ?? 0.5
+        return max(maxVal * 1.2, 0.1)
     }
 
     private var formattedRemainingTime: String {
@@ -586,6 +649,20 @@ struct PresentationHUDView: View {
         }
     }
 
+    private func bufferToDB(_ buffer: AVAudioPCMBuffer) -> Double {
+        guard let channelData = buffer.floatChannelData?[0] else { return -80 }
+        let frameLength = Int(buffer.frameLength)
+        var rms: Float = 0
+        if frameLength > 0 {
+            for i in 0..<frameLength {
+                let x = channelData[i]
+                rms += x * x
+            }
+            rms = sqrt(rms / Float(frameLength))
+        }
+        return Double(20 * log10(max(rms, 0.000_01)))
+    }
+
     // MARK: - Live Speech Recognition
 
     private func startLiveSpeechRecognition() {
@@ -599,6 +676,21 @@ struct PresentationHUDView: View {
             print("⚠️ Speech recognition not authorized (status: \(authStatus.rawValue))")
             session.liveSpokenText = "(Speech recognition not authorized)"
             return
+        }
+
+        // Reset trackers
+        audioStartTime = CFAbsoluteTimeGetCurrent()
+        dbSum = 0
+        dbCount = 0
+        session.voiceSamples.removeAll()
+        session.maxDB = -80
+        
+        Task {
+            do {
+                try await tracker.start()
+            } catch {
+                print("Failed to start hand tracker: \(error)")
+            }
         }
 
         guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
@@ -646,8 +738,19 @@ struct PresentationHUDView: View {
         }
 
         inputNode.removeTap(onBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: fmt) { buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: fmt) { [self] buffer, _ in
             req.append(buffer)
+            
+            // Extract dB
+            let db = bufferToDB(buffer)
+            let t = CFAbsoluteTimeGetCurrent() - audioStartTime
+            
+            DispatchQueue.main.async {
+                session.voiceSamples.append(VoiceSample(t: t, db: db))
+                dbSum += db
+                dbCount += 1
+                session.maxDB = max(session.maxDB, db)
+            }
         }
 
         recognitionTask = speechRecognizer.recognitionTask(with: req) { result, error in
@@ -681,6 +784,18 @@ struct PresentationHUDView: View {
         recognitionTask?.finish()
         recognitionRequest = nil
         recognitionTask = nil
+        
+        if let htSession = tracker.stop() {
+            session.handSamples = htSession.samples
+            session.avgLeftFreq = htSession.avgLeftFreq
+            session.avgRightFreq = htSession.avgRightFreq
+            session.maxLeftFreq = htSession.maxLeftFreq
+            session.maxRightFreq = htSession.maxRightFreq
+        }
+        
+        if dbCount > 0 {
+            session.avgDB = dbSum / Double(dbCount)
+        }
     }
 }
 
@@ -1011,16 +1126,37 @@ struct DetailFeedbackView: View {
                         )
                         FeedbackCard(
                             title: "Vocal Delivery",
-                            score: nil,
+                            score: session.scoreVocalDelivery,
                             fallbackLabel: "Updating",
                             text: session.feedbackVocalDelivery
-                        )
+                        ) {
+                            if !session.voiceSamples.isEmpty {
+                                LiveVoiceChart(
+                                    samples: session.voiceSamples,
+                                    minDB: -80,
+                                    maxDB: 0
+                                )
+                                .frame(height: 150)
+                                .padding(.top, 10)
+                            }
+                        }
+                        
                         FeedbackCard(
                             title: "Non-verbal / Body Language",
-                            score: nil,
+                            score: session.scoreNonverbal,
                             fallbackLabel: "Updating",
                             text: session.feedbackNonverbal
-                        )
+                        ) {
+                            if !session.handSamples.isEmpty {
+                                let maxFreq = session.handSamples.map { max($0.leftFreq, $0.rightFreq) }.max() ?? 0.5
+                                LiveDualLineChart(
+                                    samples: session.handSamples,
+                                    maxY: max(maxFreq * 1.2, 0.1)
+                                )
+                                .frame(height: 150)
+                                .padding(.top, 10)
+                            }
+                        }
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 30)
@@ -1030,11 +1166,26 @@ struct DetailFeedbackView: View {
     }
 }
 
-private struct FeedbackCard: View {
+private struct FeedbackCard<Content: View>: View {
     let title: String
     let score: Double?
     let fallbackLabel: String
     let text: String
+    let chartContent: Content
+
+    init(
+        title: String,
+        score: Double?,
+        fallbackLabel: String,
+        text: String,
+        @ViewBuilder chartContent: () -> Content = { EmptyView() }
+    ) {
+        self.title = title
+        self.score = score
+        self.fallbackLabel = fallbackLabel
+        self.text = text
+        self.chartContent = chartContent()
+    }
 
     private var scoreLabel: String {
         if let score {
@@ -1062,6 +1213,8 @@ private struct FeedbackCard: View {
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.9))
                 .fixedSize(horizontal: false, vertical: true)
+                
+            chartContent
         }
         .padding(14)
         .background(

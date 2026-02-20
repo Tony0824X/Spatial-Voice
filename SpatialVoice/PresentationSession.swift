@@ -1,5 +1,13 @@
 // PresentationSession.swift
 import Foundation
+import Foundation
+
+// MARK: - Models
+
+struct VoiceSample: Codable {
+    let t: Double
+    let db: Double
+}
 
 // MARK: - Practice Record（Class Presentation 練習記錄）
 
@@ -101,6 +109,17 @@ final class PresentationSession: ObservableObject {
 
     @Published var isAnalyzing: Bool = false
 
+    // MARK: - Voice & Body Language Data
+    
+    @Published var voiceSamples: [VoiceSample] = []
+    @Published var handSamples: [HandMovementSample] = []
+    @Published var avgDB: Double = -80
+    @Published var maxDB: Double = -80
+    @Published var avgLeftFreq: Double = 0
+    @Published var avgRightFreq: Double = 0
+    @Published var maxLeftFreq: Double = 0
+    @Published var maxRightFreq: Double = 0
+
     // MARK: - 分數（0–10）
 
     /// 4 個 numeric 分數（Result / Detail Feedback 已在用）
@@ -199,6 +218,9 @@ final class PresentationSession: ObservableObject {
         // 顯示文字重設
         scoreVocalDeliveryLabel = "Updating"
         scoreNonverbalLabel = "Updating"
+        
+        // Removed clearing of voiceSamples, handSamples, avgDB, maxDB, avgLeftFreq, avgRightFreq, maxLeftFreq, maxRightFreq
+        // because they need to be preserved for DeepSeekAnalysis which calls resetResults() right before analysis.
     }
 
     // MARK: - Dummy Data：Practice / Game / Certificate

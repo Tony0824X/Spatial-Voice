@@ -15,5 +15,7 @@
 	<string></string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string></string>
+	<key>NSHandsTrackingUsageDescription</key>
+	<string>Track your hand movements to analyze your body language during the presentation.</string>
 </dict>
 </plist>
