@@ -6,6 +6,7 @@ struct GamePlayingStep3View: View {
 
     @Binding var coins: Int
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
     @State private var showStep4: Bool = false
 
@@ -128,6 +129,9 @@ struct GamePlayingStep3View: View {
         }
         .onAppear {
             SFSpeechRecognizer.requestAuthorization { _ in }
+            Task {
+                _ = await openImmersiveSpace(id: "Gameroom1")
+            }
         }
     }
 

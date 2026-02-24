@@ -33,11 +33,7 @@ struct GameMenuView: View {
                         action: {
                             // 👉 按 Challenge 時：
                             // 1. 顯示 GamePlayingView（2D）
-                            // 2. 同時打開 Gameroom1 Immersive Space
                             showPlaying = true
-                            Task {
-                                _ = await openImmersiveSpace(id: "Gameroom1")
-                            }
                         }
                     )
                 }
